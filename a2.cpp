@@ -4,7 +4,8 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
-#include<math.h>
+#include <math.h>
+#include <ctime>
 #include <map>
 #define PI 3.14
 #define E 2.718281828
@@ -31,11 +32,14 @@ using namespace std;
 // Draws a rectangle on an image plane, using the specified gray level value and line width.
 //
 
-const int DESCRIPTOR_LENGTH = 128; 
+const int DESCRIPTOR_LENGTH = 128;
+string folderName = "";
+
 struct Descriptor 
 {
   double vector[DESCRIPTOR_LENGTH];
 };
+
 void overlay_rectangle(SDoublePlane &input, int _top, int _left, int _bottom, int _right, double graylevel, int width)
 {
   for(int w=-width/2; w<=width/2; w++) {
@@ -183,7 +187,7 @@ SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
 // Apply an edge detector to an image, returns the binary edge map
 
 //tomasi corner detector
-vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePlane &input_x,const SDoublePlane &input_y)
+vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePlane &input_x,const SDoublePlane &input_y, string imageSequenceNumber)
 {
   vector<Coordinate> points;
   Coordinate c;
@@ -246,9 +250,10 @@ vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePl
       }
     }
   }
-
-
-  SImageIO::write_png_file("Tomasi.png", output , output , output);
+    string generalFileName = "tomasi";
+    string tomasiConvertedFileName = generalFileName + "_" + imageSequenceNumber +  ".png";
+    string tomasiImageStorageFullPath = folderName + tomasiConvertedFileName;
+    SImageIO::write_png_file(tomasiImageStorageFullPath.c_str(), output , output , output);
   return points;
 }
 
@@ -655,6 +660,30 @@ void stitch(SDoublePlane &image1, SDoublePlane &image2,SDoublePlane &gradient_x1
 SImageIO::write_png_file(output_filename.c_str(), stitched , stitched , stitched);
 }
 
+
+//Get current date and time for us
+const std::string currentDateTime() {
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    strftime(buf, sizeof(buf), "%m-%d-%Y-%X", &tstruct);
+    return buf;
+}
+
+bool doesStringContainCharacter(string inputString, string characterToFind) {
+    return (inputString.find(characterToFind) != std::string::npos);
+}
+
+void split(vector<string>& tokens, const string &text, char sep) {
+    int start = 0, end = 0;
+    while ((end = text.find(sep, start)) != string::npos) {
+        tokens.push_back(text.substr(start, end - start));
+        start = end + 1;
+    }
+    tokens.push_back(text.substr(start));
+}
+
 int main(int argc, char *argv[])
 {
   float sigma_value,thresh_value;
@@ -664,50 +693,94 @@ int main(int argc, char *argv[])
     cerr << "usage: " << argv[0] << " output_file image_file1 image_file2" << endl;
     return 1;
   }
+
   vector<Coordinate> output_points1;
   vector<Coordinate> output_points2;
 
   string image1_filename(argv[2]);
   string image2_filename(argv[3]);
   string output_filename(argv[1]);
-  SDoublePlane image1= SImageIO::read_png_file(image1_filename.c_str());
-  SDoublePlane image2= SImageIO::read_png_file(image2_filename.c_str());
+
+  const char* firstInputImageName = image1_filename.c_str();
+  const char* secondInputImageName = image2_filename.c_str();
+
+    
+  if(!doesStringContainCharacter(firstInputImageName,".png") || !doesStringContainCharacter(secondInputImageName,".png")) {
+    cerr << "Please provide only png files as an input" << endl;
+    return 1;
+  }
+    //We will check if image to be processed is taken from folder
+    vector<string> tokensCollection;
+    string fileName = "";
+    
+    cout<<"length "<<tokensCollection.size()<<endl;
+    if(doesStringContainCharacter(firstInputImageName, "/")) {
+        split(tokensCollection, firstInputImageName, '/');
+        int totalLength = tokensCollection.size();
+        for (int i=0; i<totalLength - 1;i++){
+            folderName.append(tokensCollection[i]);
+            folderName.append("/");
+        }
+    }
+    
+    cout<<"Full folder path "<<folderName<<endl;
+
+  SDoublePlane image1= SImageIO::read_png_file(firstInputImageName);
+  SDoublePlane image2= SImageIO::read_png_file(secondInputImageName);
 
   
-  if(argc >= 5)
+  if(argc >= 5) {
     sigma_value = atof(argv[4]);
-  if(argc >= 6)
+  }
+  
+  if(argc >= 6) {
     GAUSS_KERNEL_SIZE = atoi(argv[5]);
-  if(argc >= 7)
-    thresh_value = atof(argv[6]);
+  }
 
-  int image_count = argc - 3;
-//  string output_filename = argv[1];
-   
-  SImageIO::write_png_file("image1.png", image1, image1, image1);
-  SImageIO::write_png_file("image2.png", image2, image2, image2);
+  if(argc >= 7) {
+    thresh_value = atof(argv[6]);
+  }
+  
+    string firstBlackAndWhiteImage = folderName + "first_b_and_w_image.png";
+    string secondBlackAndWhiteImage = folderName + "second_b_and_w_image.png";
+    
+  SImageIO::write_png_file(firstBlackAndWhiteImage.c_str(), image1, image1, image1);
+  SImageIO::write_png_file(secondBlackAndWhiteImage.c_str(), image2, image2, image2);
   //Call to Gaussian filter to smooth the image
+
+    string firstGaussianImage = folderName + "first_gaussian_image.png";
+    string secondGaussianImage = folderName + "second_gaussian_image.png";
+
   SDoublePlane gaussed1 = gaussian_filter(image1,1,3);
-  SImageIO::write_png_file("gaussed1.png", gaussed1 , gaussed1 , gaussed1);
+  SImageIO::write_png_file(firstGaussianImage.c_str(), gaussed1 , gaussed1 , gaussed1);
   SDoublePlane gaussed2 = gaussian_filter(image2,1,3);
-  SImageIO::write_png_file("gaussed2.png", gaussed2 , gaussed2 , gaussed2);
+  SImageIO::write_png_file(secondGaussianImage.c_str(), gaussed2 , gaussed2 , gaussed2);
 
   
   // compute gradient magnitude map of the input image
+    
+    string firstGradientXImage = folderName + "first_gradient_X_image.png";
+    string firstGradientYImage = folderName + "first_gradient_Y_image.png";
+    
   SDoublePlane gradient_x1 = sobel_gradient_filter(gaussed1, true);
-  SImageIO::write_png_file("gradient_x1.png", gradient_x1, gradient_x1, gradient_x1);
+  SImageIO::write_png_file(firstGradientXImage.c_str(), gradient_x1, gradient_x1, gradient_x1);
 
   SDoublePlane gradient_y1 = sobel_gradient_filter(gaussed1, false);
-  SImageIO::write_png_file("gradient_y1.png", gradient_y1, gradient_y1, gradient_y1);
+  SImageIO::write_png_file(firstGradientYImage.c_str(), gradient_y1, gradient_y1, gradient_y1);
   
+    string secondGradientXImage = folderName + "second_gradient_X_image.png";
+    string secondGradientYImage = folderName + "second_gradient_Y_image.png";
+    
   SDoublePlane gradient_x2 = sobel_gradient_filter(gaussed2, true);
-  SImageIO::write_png_file("gradient_x2.png", gradient_x2, gradient_x2, gradient_x2);
+  SImageIO::write_png_file(secondGradientXImage.c_str(), gradient_x2, gradient_x2, gradient_x2);
 
   SDoublePlane gradient_y2 = sobel_gradient_filter(gaussed2, false);
-  SImageIO::write_png_file("gradient_y2.png", gradient_y2, gradient_y2, gradient_y2);
+  SImageIO::write_png_file(secondGradientYImage.c_str(), gradient_y2, gradient_y2, gradient_y2);
 
-  find_corners_tomasi(image1,gradient_x1,gradient_y1) ;
-  stitch(image1, image2,gradient_x1,gradient_y1,gradient_x2,gradient_y2,output_filename,image1_filename,image2_filename);
+  find_corners_tomasi(image1,gradient_x1,gradient_y1, "1") ;
+  find_corners_tomasi(image2,gradient_x2,gradient_y2, "2") ;
+    
+    stitch(image1, image2,gradient_x1,gradient_y1,gradient_x2,gradient_y2,output_filename,image1_filename,image2_filename);
   
   return 0;
 }
