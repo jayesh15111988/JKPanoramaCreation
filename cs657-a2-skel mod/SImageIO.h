@@ -94,10 +94,15 @@ class SImageIO
 
       png_read_info(png_ptr, info_ptr);
 
-      width = info_ptr->width;
+      /*width = info_ptr->width;
       height = info_ptr->height;
       color_type = info_ptr->color_type;
-      bit_depth = info_ptr->bit_depth;
+      bit_depth = info_ptr->bit_depth;*/
+
+      width = png_get_image_width(png_ptr, info_ptr);
+      height = png_get_image_height(png_ptr, info_ptr);
+      color_type = png_get_color_type(png_ptr, info_ptr);
+      bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 
       number_of_passes = png_set_interlace_handling(png_ptr);
       png_read_update_info(png_ptr, info_ptr);
@@ -110,7 +115,7 @@ class SImageIO
       assert (color_type == PNG_COLOR_TYPE_RGB ||
 	      color_type == PNG_COLOR_TYPE_RGBA);
 
-      const int bytes_per_pixel = info_ptr->rowbytes / width;
+      const int bytes_per_pixel = png_get_rowbytes(png_ptr,info_ptr) / width; //info_ptr->rowbytes / width;
       assert(bit_depth == 8);
 
       _DTwoDimArray<unsigned char> img(height, width*bytes_per_pixel);

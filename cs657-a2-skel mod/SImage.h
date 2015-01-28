@@ -2,7 +2,7 @@
 #define __SIMAGE_H__
 
 #include <DTwoDimArray.h>
-#include <string.h>
+#include <cstring>
 
 // A very simple image class.
 //

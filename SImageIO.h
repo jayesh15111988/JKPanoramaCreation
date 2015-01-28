@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <cstring>
+#include <string.h>
 #include <stdarg.h>
 #include <assert.h>
 #include <iostream>
@@ -97,7 +97,7 @@ class SImageIO
       /*width = info_ptr->width;
       height = info_ptr->height;
       color_type = info_ptr->color_type;
-      bit_depth = info_ptr->bit_depth; */
+      bit_depth = info_ptr->bit_depth;*/
 
       width = png_get_image_width(png_ptr, info_ptr);
       height = png_get_image_height(png_ptr, info_ptr);
@@ -115,7 +115,7 @@ class SImageIO
       assert (color_type == PNG_COLOR_TYPE_RGB ||
 	      color_type == PNG_COLOR_TYPE_RGBA);
 
-      const int bytes_per_pixel = png_get_rowbytes(png_ptr,info_ptr) / width;  //info_ptr->rowbytes / width;
+      const int bytes_per_pixel = png_get_rowbytes(png_ptr,info_ptr) / width; //info_ptr->rowbytes / width;
       assert(bit_depth == 8);
 
       _DTwoDimArray<unsigned char> img(height, width*bytes_per_pixel);
