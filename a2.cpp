@@ -198,6 +198,7 @@ vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePl
   SDoublePlane gaussysquare(input.rows(),input.cols());
   SDoublePlane gaussxy(input.rows(),input.cols());
   SDoublePlane output(input.rows(),input.cols());
+
   double R=0;
   for(int i=0;i<input.rows();i++)
   {
@@ -208,6 +209,7 @@ vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePl
       xy[i][j]=(input_x[i][j]*input_y[i][j]);
     }
   }
+    
   gaussxsquare=gaussian_filter(xsquare,2,5);
   gaussysquare=gaussian_filter(ysquare,2,5);
   gaussxy=gaussian_filter(xy,2,5);
@@ -258,7 +260,7 @@ vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePl
 }
 
 
-vector<Coordinate> find_corners(const SDoublePlane &input,const SDoublePlane &input_x,const SDoublePlane &input_y,double sigma,int size,string filename,int turn)
+vector<Coordinate> find_corners(const SDoublePlane &input,const SDoublePlane &input_x,const SDoublePlane &input_y,double sigma,int size,string filename,string turn)
 {
   vector<Coordinate> points;
     Coordinate c;
@@ -270,6 +272,7 @@ vector<Coordinate> find_corners(const SDoublePlane &input,const SDoublePlane &in
   SDoublePlane gaussxy(input.rows(),input.cols());
   SDoublePlane output(input.rows(),input.cols());
   double R=0;
+
   for(int i=0;i<input.rows();i++)
   {
     for(int j=0;j<input.cols();j++)
@@ -282,11 +285,14 @@ vector<Coordinate> find_corners(const SDoublePlane &input,const SDoublePlane &in
   gaussxsquare=gaussian_filter(xsquare,sigma,size);
   gaussysquare=gaussian_filter(ysquare,sigma,size);
   gaussxy=gaussian_filter(xy,sigma,size);
+    
+
+    
   for(int i=0;i<input.rows();i++)
   {
     for(int j=0;j<input.cols();j++)
     {
-      R=((gaussxsquare[i][j]*gaussysquare[i][j]) - (pow(gaussxy[i][j],2)))- (      (0.01)*     pow((gaussxsquare[i][j]+gaussysquare[i][j]),2)                );
+      R=((gaussxsquare[i][j]*gaussysquare[i][j]) - (pow(gaussxy[i][j],2)))- ((0.01)*pow((gaussxsquare[i][j]+gaussysquare[i][j]),2)                );
       if(R>1000)
       {
         c.row=i;
@@ -296,6 +302,7 @@ vector<Coordinate> find_corners(const SDoublePlane &input,const SDoublePlane &in
       }
     }
   }
+    
   for(int i=0;i<output.rows();i++)
   {
     for(int j=0;j<output.cols();j++)
@@ -308,26 +315,15 @@ vector<Coordinate> find_corners(const SDoublePlane &input,const SDoublePlane &in
         }
         else
         {       
-          output[i][j]=0;
+          output[i][j]=255;
         }
       }
     }
   }
+    
+string harrisCornerDetectorOutputFile = folderName + "harris_corner_detector" + turn + ".png";
 
-  if(turn == 0)
-  {  
-    SImageIO::write_png_file("harris_cornersim1.png", output , output , output);
-  }
-  else if(turn == 1)
-  {
-    SImageIO::write_png_file("harris_cornersim2.png", output , output , output);
-  }
-  else
-  {
-    SImageIO::write_png_file("harris_corners.png", output , output , output);
-  }
-  SImageIO::write_png_file("harris_cornersim1.png", output , output , output);
-
+SImageIO::write_png_file(harrisCornerDetectorOutputFile.c_str(), output , output , output);
 
   return points;
 }
@@ -557,11 +553,16 @@ void stitch(SDoublePlane &image1, SDoublePlane &image2,SDoublePlane &gradient_x1
   int max=-10000;
   int left,right;
  
-  vector<Coordinate> image1_coordinates = find_corners(image1,gradient_x1,gradient_y1,1,3,image1_filename,0);
-  vector<Descriptor> image1_descriptors =invariant_descriptors(image1, image1_coordinates);
+    cout<<"Finding corners using Harris corner detection algorithm for first image\n\n";
+
+  vector<Coordinate> image1_coordinates = find_corners(image1,gradient_x1,gradient_y1,1,3,image1_filename,"1");
+vector<Descriptor> image1_descriptors =invariant_descriptors(image1, image1_coordinates);
   ofstream ofs(output_filename.c_str());
-  vector<Coordinate> image2_coordinates = find_corners(image2,gradient_x2,gradient_y2,1,3,image2_filename,1);
+    cout<<"Finding corners using Harris corner detection algorithm for second image\n\n";
+
+  vector<Coordinate> image2_coordinates = find_corners(image2,gradient_x2,gradient_y2,1,3,image2_filename,"2");
   vector<Descriptor> image2_descriptors = invariant_descriptors(image2, image2_coordinates);
+
   int variable=0;
   int counter=0;
   int maximum;
@@ -713,7 +714,6 @@ int main(int argc, char *argv[])
     vector<string> tokensCollection;
     string fileName = "";
     
-    cout<<"length "<<tokensCollection.size()<<endl;
     if(doesStringContainCharacter(firstInputImageName, "/")) {
         split(tokensCollection, firstInputImageName, '/');
         int totalLength = tokensCollection.size();
@@ -743,6 +743,8 @@ int main(int argc, char *argv[])
   
     string firstBlackAndWhiteImage = folderName + "first_b_and_w_image.png";
     string secondBlackAndWhiteImage = folderName + "second_b_and_w_image.png";
+   
+    cout<<"Writing input files into gray scale formatted images\n\n";
     
   SImageIO::write_png_file(firstBlackAndWhiteImage.c_str(), image1, image1, image1);
   SImageIO::write_png_file(secondBlackAndWhiteImage.c_str(), image2, image2, image2);
@@ -751,6 +753,7 @@ int main(int argc, char *argv[])
     string firstGaussianImage = folderName + "first_gaussian_image.png";
     string secondGaussianImage = folderName + "second_gaussian_image.png";
 
+        cout<<"Applying Gaussian filter to input grayscale images\n\n";
   SDoublePlane gaussed1 = gaussian_filter(image1,1,3);
   SImageIO::write_png_file(firstGaussianImage.c_str(), gaussed1 , gaussed1 , gaussed1);
   SDoublePlane gaussed2 = gaussian_filter(image2,1,3);
@@ -758,7 +761,7 @@ int main(int argc, char *argv[])
 
   
   // compute gradient magnitude map of the input image
-    
+        cout<<"Applying Sobel filter in X and Y direction for first image\n\n";
     string firstGradientXImage = folderName + "first_gradient_X_image.png";
     string firstGradientYImage = folderName + "first_gradient_Y_image.png";
     
@@ -771,16 +774,22 @@ int main(int argc, char *argv[])
     string secondGradientXImage = folderName + "second_gradient_X_image.png";
     string secondGradientYImage = folderName + "second_gradient_Y_image.png";
     
+    cout<<"Applying Sobel filter in X and Y direction for second image\n\n";
   SDoublePlane gradient_x2 = sobel_gradient_filter(gaussed2, true);
   SImageIO::write_png_file(secondGradientXImage.c_str(), gradient_x2, gradient_x2, gradient_x2);
 
   SDoublePlane gradient_y2 = sobel_gradient_filter(gaussed2, false);
   SImageIO::write_png_file(secondGradientYImage.c_str(), gradient_y2, gradient_y2, gradient_y2);
 
+    cout<<"Applying Tomasi Corner detection algorithm for first image\n\n";
   find_corners_tomasi(image1,gradient_x1,gradient_y1, "1") ;
+    cout<<"Applying Tomasi Corner detection algorithm for second image\n\n";
   find_corners_tomasi(image2,gradient_x2,gradient_y2, "2") ;
+    
     //Ideal value of parameters to get corners from harris detector
 //    ./a2 outta mcfaddin_1.png mcfaddin_2.png 0.1 1 2000
+
+    cout<<"Stitching two images together\n\n";
 
     stitch(image1, image2,gradient_x1,gradient_y1,gradient_x2,gradient_y2,output_filename,image1_filename,image2_filename);
   
