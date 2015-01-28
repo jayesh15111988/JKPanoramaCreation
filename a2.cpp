@@ -779,7 +779,9 @@ int main(int argc, char *argv[])
 
   find_corners_tomasi(image1,gradient_x1,gradient_y1, "1") ;
   find_corners_tomasi(image2,gradient_x2,gradient_y2, "2") ;
-    
+    //Ideal value of parameters to get corners from harris detector
+//    ./a2 outta mcfaddin_1.png mcfaddin_2.png 0.1 1 2000
+
     stitch(image1, image2,gradient_x1,gradient_y1,gradient_x2,gradient_y2,output_filename,image1_filename,image2_filename);
   
   return 0;
