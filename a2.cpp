@@ -34,6 +34,7 @@ using namespace std;
 
 const int DESCRIPTOR_LENGTH = 128;
 string folderName = "";
+string currentDateAndTimeValue = "";
 
 struct Descriptor 
 {
@@ -252,8 +253,8 @@ vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePl
       }
     }
   }
-    string generalFileName = "tomasi";
-    string tomasiConvertedFileName = generalFileName + "_" + imageSequenceNumber +  ".png";
+    string generalFileName = currentDateAndTimeValue + "tomasi";
+    string tomasiConvertedFileName =  generalFileName + "_" + imageSequenceNumber +  ".png";
     string tomasiImageStorageFullPath = folderName + tomasiConvertedFileName;
     SImageIO::write_png_file(tomasiImageStorageFullPath.c_str(), output , output , output);
   return points;
@@ -321,7 +322,7 @@ vector<Coordinate> find_corners_harris(const SDoublePlane &input,const SDoublePl
     }
   }
     
-string harrisCornerDetectorOutputFile = folderName + "harris_corner_detector" + turn + ".png";
+string harrisCornerDetectorOutputFile = folderName + currentDateAndTimeValue + "harris_corner_detector" + turn + ".png";
 
 SImageIO::write_png_file(harrisCornerDetectorOutputFile.c_str(), output , output , output);
 
@@ -664,12 +665,12 @@ SImageIO::write_png_file(output_filename.c_str(), stitched , stitched , stitched
 
 
 //Get current date and time for us
-const std::string currentDateTime() {
+const string currentDateTime() {
     time_t     now = time(0);
     struct tm  tstruct;
     char       buf[80];
     tstruct = *localtime(&now);
-    strftime(buf, sizeof(buf), "%m-%d-%Y-%X", &tstruct);
+    strftime(buf, sizeof(buf), "%m-%d-%Y.%X", &tstruct);
     return buf;
 }
 
@@ -692,25 +693,40 @@ int main(int argc, char *argv[])
   int GAUSS_KERNEL_SIZE;
   if((argc < 4)) 
   {
-    cerr << "usage: " << argv[0] << " output_file image_file1 image_file2" << endl;
+    cerr << "usage: " << argv[0] << "mode(stitch(1)/no stitch(0)) output_file image_file1 image_file2" << endl;
     return 1;
   }
+    
+
 
   vector<Coordinate> output_points1;
   vector<Coordinate> output_points2;
 
-  string image1_filename(argv[2]);
-  string image2_filename(argv[3]);
-  string output_filename(argv[1]);
+  string image1_filename(argv[3]);
+  string image2_filename(argv[4]);
+  string output_filename(argv[2]);
 
+  int toStitchImages = atoi(argv[1]);
+    
   const char* firstInputImageName = image1_filename.c_str();
   const char* secondInputImageName = image2_filename.c_str();
 
     
-  if(!doesStringContainCharacter(firstInputImageName,".png") || !doesStringContainCharacter(secondInputImageName,".png")) {
+  if(!doesStringContainCharacter(firstInputImageName,".png")) {
     cerr << "Please provide only png files as an input" << endl;
     return 1;
   }
+    
+    if(toStitchImages == 1) {
+        if(!doesStringContainCharacter(secondInputImageName,".png")) {
+            cerr << "Please provide only png files as an input" << endl;
+            return 1;
+        }
+    }
+    
+    //Start the clock to measure execution time
+    clock_t begin = clock();
+    
     //We will check if image to be processed is taken from folder
     vector<string> tokensCollection;
     string fileName = "";
@@ -727,57 +743,61 @@ int main(int argc, char *argv[])
     cout<<"Full folder path "<<folderName<<endl;
 
   SDoublePlane image1= SImageIO::read_png_file(firstInputImageName);
-  SDoublePlane image2= SImageIO::read_png_file(secondInputImageName);
-
   
-  if(argc >= 5) {
-    sigma_value = atof(argv[4]);
+    int extraParametersIndex = 4 + toStitchImages;
+    
+  if(argc >= extraParametersIndex + 1) {
+    sigma_value = atof(argv[extraParametersIndex]);
   }
   
-  if(argc >= 6) {
-    GAUSS_KERNEL_SIZE = atoi(argv[5]);
+  if(argc >= extraParametersIndex + 2) {
+    GAUSS_KERNEL_SIZE = atoi(argv[extraParametersIndex + 1]);
   }
 
-  if(argc >= 7) {
-    thresh_value = atof(argv[6]);
+  if(argc >= extraParametersIndex + 3) {
+    thresh_value = atof(argv[extraParametersIndex + 2]);
   }
     
+    cout<<"Output image name : "<<output_filename<<"\nsigma value is : "<<sigma_value<<"\nGauss Kernel size is : "<<GAUSS_KERNEL_SIZE<<"\nThreshold value for detecting image corners is : "<<thresh_value<<endl<<endl;
+    
+    currentDateAndTimeValue = currentDateTime() + "_";
+    
     cout<<"Converting first image to gray scale version\n\n";
-    string firstBlackAndWhiteImage = folderName + "first_b_and_w_image.png";
+    string firstBlackAndWhiteImage = folderName + currentDateAndTimeValue + "first_b_and_w_image.png";
     SImageIO::write_png_file(firstBlackAndWhiteImage.c_str(), image1, image1, image1);
    
     cout<<"Applying Gaussian filter to first input grayscale images\n\n";
-    string firstGaussianImage = folderName + "first_gaussian_image.png";
+    string firstGaussianImage = folderName + currentDateAndTimeValue + "first_gaussian_image.png";
     SDoublePlane gaussed1 = gaussian_filter(image1,1,3);
     SImageIO::write_png_file(firstGaussianImage.c_str(), gaussed1 , gaussed1 , gaussed1);
-
     
     cout<<"Applying Sobel filter in X and Y direction for first image\n\n";
-    string firstGradientXImage = folderName + "first_gradient_X_image.png";
+    string firstGradientXImage = folderName + currentDateAndTimeValue +"first_gradient_X_image.png";
     SDoublePlane gradient_x1 = sobel_gradient_filter(gaussed1, true);
     SImageIO::write_png_file(firstGradientXImage.c_str(), gradient_x1, gradient_x1, gradient_x1);
 
-    string firstGradientYImage = folderName + "first_gradient_Y_image.png";
+    string firstGradientYImage = folderName + currentDateAndTimeValue +"first_gradient_Y_image.png";
     SDoublePlane gradient_y1 = sobel_gradient_filter(gaussed1, false);
     SImageIO::write_png_file(firstGradientYImage.c_str(), gradient_y1, gradient_y1, gradient_y1);
 
     cout<<"Applying Tomasi Corner detection algorithm for first image\n\n";
     find_corners_tomasi(image1,gradient_x1,gradient_y1, "1") ;
 
-    
+    if(toStitchImages == 1) {
+    SDoublePlane image2= SImageIO::read_png_file(secondInputImageName);
     cout<<"Converting second image to gray scale version\n\n";
-    string secondBlackAndWhiteImage = folderName + "second_b_and_w_image.png";
+    string secondBlackAndWhiteImage = folderName + currentDateAndTimeValue +"second_b_and_w_image.png";
     SImageIO::write_png_file(secondBlackAndWhiteImage.c_str(), image2, image2, image2);
     
     cout<<"Applying Gaussian filter to second input grayscale images\n\n";
-    string secondGaussianImage = folderName + "second_gaussian_image.png";
+    string secondGaussianImage = folderName + currentDateAndTimeValue +"second_gaussian_image.png";
     SDoublePlane gaussed2 = gaussian_filter(image2,1,3);
     SImageIO::write_png_file(secondGaussianImage.c_str(), gaussed2 , gaussed2 , gaussed2);
 
   
     cout<<"Applying Sobel filter in X and Y direction for second image\n\n";
-    string secondGradientXImage = folderName + "second_gradient_X_image.png";
-    string secondGradientYImage = folderName + "second_gradient_Y_image.png";
+    string secondGradientXImage = folderName + currentDateAndTimeValue + "second_gradient_X_image.png";
+    string secondGradientYImage = folderName + currentDateAndTimeValue + "second_gradient_Y_image.png";
     
     SDoublePlane gradient_x2 = sobel_gradient_filter(gaussed2, true);
     SImageIO::write_png_file(secondGradientXImage.c_str(), gradient_x2, gradient_x2, gradient_x2);
@@ -789,8 +809,18 @@ int main(int argc, char *argv[])
     find_corners_tomasi(image2,gradient_x2,gradient_y2, "2") ;
     
     cout<<"Stitching two images together\n\n";
-
     stitch(image1, image2,gradient_x1,gradient_y1,gradient_x2,gradient_y2,output_filename,image1_filename,image2_filename);
+    }
+    else {
+        cout<<"Applying harris corner detection to image\n\n";
+        find_corners_harris(image1,gradient_x1,gradient_y1,1,3,image1_filename,"1");
+        cout<<"Successfully applied harris corner detector to image\n\n";
+    }
+    
+    //Stop the clock after measuring specific amount of time
+    clock_t end = clock();
+    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+    cout<<"Program executed in "<<elapsed_secs<<" Seconds \n\n";
   
   return 0;
 }
