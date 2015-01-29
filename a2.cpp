@@ -260,7 +260,7 @@ vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePl
 }
 
 
-vector<Coordinate> find_corners(const SDoublePlane &input,const SDoublePlane &input_x,const SDoublePlane &input_y,double sigma,int size,string filename,string turn)
+vector<Coordinate> find_corners_harris(const SDoublePlane &input,const SDoublePlane &input_x,const SDoublePlane &input_y,double sigma,int size,string filename,string turn)
 {
   vector<Coordinate> points;
     Coordinate c;
@@ -351,9 +351,9 @@ vector<Descriptor> invariant_descriptors(const SDoublePlane &input, const vector
   double theta = 0;
   double distance;
   double vectemp[8];
-
-  for(int i=0;i<points.size();i++)
-  {    
+    int totalNumberOfPoints = points.size();
+  for(long i=0;i<totalNumberOfPoints;i++)
+  {
     arrsize=0;
     Descriptor descriptor;        
     for(int e=points.at(i).row-8;e<=points.at(i).row+8;e+=4)
@@ -443,10 +443,10 @@ vector<Descriptor> invariant_descriptors(const SDoublePlane &input, const vector
   }
       }
         }
-       
-    descriptors.push_back(descriptor);
+      
+      descriptors.push_back(descriptor);
   }
-  return descriptors;
+    return descriptors;
 }
 
 // Estimate a relative transation given two sets of interest points.
@@ -554,13 +554,13 @@ void stitch(SDoublePlane &image1, SDoublePlane &image2,SDoublePlane &gradient_x1
   int left,right;
  
     cout<<"Finding corners using Harris corner detection algorithm for first image\n\n";
-
-  vector<Coordinate> image1_coordinates = find_corners(image1,gradient_x1,gradient_y1,1,3,image1_filename,"1");
-vector<Descriptor> image1_descriptors =invariant_descriptors(image1, image1_coordinates);
-  ofstream ofs(output_filename.c_str());
+  vector<Coordinate> image1_coordinates = find_corners_harris(image1,gradient_x1,gradient_y1,1,3,image1_filename,"1");
+    
+    vector<Descriptor> image1_descriptors =invariant_descriptors(image1, image1_coordinates);
+    ofstream ofs(output_filename.c_str());
     cout<<"Finding corners using Harris corner detection algorithm for second image\n\n";
 
-  vector<Coordinate> image2_coordinates = find_corners(image2,gradient_x2,gradient_y2,1,3,image2_filename,"2");
+  vector<Coordinate> image2_coordinates = find_corners_harris(image2,gradient_x2,gradient_y2,1,3,image2_filename,"2");
   vector<Descriptor> image2_descriptors = invariant_descriptors(image2, image2_coordinates);
 
   int variable=0;
@@ -574,7 +574,7 @@ vector<Descriptor> image1_descriptors =invariant_descriptors(image1, image1_coor
   ytrans=ims.ytrans;
   ptimage1=ims.pointimage1;
   ptimage2=ims.pointimage2;
-  cout<<xtrans<<" "<<ytrans<<" "<<ptimage1<<" "<<ptimage2<<endl;
+  //cout<<xtrans<<" "<<ytrans<<" "<<ptimage1<<" "<<ptimage2<<endl;
 
   xshift = abs(image1_coordinates.at(ptimage1).col-image2_coordinates.at(ptimage2).col);
   yshift = abs(image1_coordinates.at(ptimage1).row-image2_coordinates.at(ptimage2).row);
@@ -612,8 +612,9 @@ vector<Descriptor> image1_descriptors =invariant_descriptors(image1, image1_coor
     image2xlow=0;
     image2xhigh=image2_coordinates.at(ptimage2).col-1;
   }
-
+cout<<"Stitch Begin\n\n";
   SDoublePlane stitched(image1yhigh-image1ylow+1,image2xhigh-image2xlow+1+image1xhigh-image1xlow+1);
+    cout<<"Stitch End\n\n";
 
   int jayesh = image1_coordinates.at(ptimage1).col;
   int jayesh1 = image2_coordinates.at(ptimage2).col;
@@ -740,55 +741,53 @@ int main(int argc, char *argv[])
   if(argc >= 7) {
     thresh_value = atof(argv[6]);
   }
-  
+    
+    cout<<"Converting first image to gray scale version\n\n";
     string firstBlackAndWhiteImage = folderName + "first_b_and_w_image.png";
-    string secondBlackAndWhiteImage = folderName + "second_b_and_w_image.png";
+    SImageIO::write_png_file(firstBlackAndWhiteImage.c_str(), image1, image1, image1);
    
-    cout<<"Writing input files into gray scale formatted images\n\n";
-    
-  SImageIO::write_png_file(firstBlackAndWhiteImage.c_str(), image1, image1, image1);
-  SImageIO::write_png_file(secondBlackAndWhiteImage.c_str(), image2, image2, image2);
-  //Call to Gaussian filter to smooth the image
-
+    cout<<"Applying Gaussian filter to first input grayscale images\n\n";
     string firstGaussianImage = folderName + "first_gaussian_image.png";
-    string secondGaussianImage = folderName + "second_gaussian_image.png";
+    SDoublePlane gaussed1 = gaussian_filter(image1,1,3);
+    SImageIO::write_png_file(firstGaussianImage.c_str(), gaussed1 , gaussed1 , gaussed1);
 
-        cout<<"Applying Gaussian filter to input grayscale images\n\n";
-  SDoublePlane gaussed1 = gaussian_filter(image1,1,3);
-  SImageIO::write_png_file(firstGaussianImage.c_str(), gaussed1 , gaussed1 , gaussed1);
-  SDoublePlane gaussed2 = gaussian_filter(image2,1,3);
-  SImageIO::write_png_file(secondGaussianImage.c_str(), gaussed2 , gaussed2 , gaussed2);
-
-  
-  // compute gradient magnitude map of the input image
-        cout<<"Applying Sobel filter in X and Y direction for first image\n\n";
-    string firstGradientXImage = folderName + "first_gradient_X_image.png";
-    string firstGradientYImage = folderName + "first_gradient_Y_image.png";
     
-  SDoublePlane gradient_x1 = sobel_gradient_filter(gaussed1, true);
-  SImageIO::write_png_file(firstGradientXImage.c_str(), gradient_x1, gradient_x1, gradient_x1);
+    cout<<"Applying Sobel filter in X and Y direction for first image\n\n";
+    string firstGradientXImage = folderName + "first_gradient_X_image.png";
+    SDoublePlane gradient_x1 = sobel_gradient_filter(gaussed1, true);
+    SImageIO::write_png_file(firstGradientXImage.c_str(), gradient_x1, gradient_x1, gradient_x1);
 
-  SDoublePlane gradient_y1 = sobel_gradient_filter(gaussed1, false);
-  SImageIO::write_png_file(firstGradientYImage.c_str(), gradient_y1, gradient_y1, gradient_y1);
+    string firstGradientYImage = folderName + "first_gradient_Y_image.png";
+    SDoublePlane gradient_y1 = sobel_gradient_filter(gaussed1, false);
+    SImageIO::write_png_file(firstGradientYImage.c_str(), gradient_y1, gradient_y1, gradient_y1);
+
+    cout<<"Applying Tomasi Corner detection algorithm for first image\n\n";
+    find_corners_tomasi(image1,gradient_x1,gradient_y1, "1") ;
+
+    
+    cout<<"Converting second image to gray scale version\n\n";
+    string secondBlackAndWhiteImage = folderName + "second_b_and_w_image.png";
+    SImageIO::write_png_file(secondBlackAndWhiteImage.c_str(), image2, image2, image2);
+    
+    cout<<"Applying Gaussian filter to second input grayscale images\n\n";
+    string secondGaussianImage = folderName + "second_gaussian_image.png";
+    SDoublePlane gaussed2 = gaussian_filter(image2,1,3);
+    SImageIO::write_png_file(secondGaussianImage.c_str(), gaussed2 , gaussed2 , gaussed2);
+
   
+    cout<<"Applying Sobel filter in X and Y direction for second image\n\n";
     string secondGradientXImage = folderName + "second_gradient_X_image.png";
     string secondGradientYImage = folderName + "second_gradient_Y_image.png";
     
-    cout<<"Applying Sobel filter in X and Y direction for second image\n\n";
-  SDoublePlane gradient_x2 = sobel_gradient_filter(gaussed2, true);
-  SImageIO::write_png_file(secondGradientXImage.c_str(), gradient_x2, gradient_x2, gradient_x2);
+    SDoublePlane gradient_x2 = sobel_gradient_filter(gaussed2, true);
+    SImageIO::write_png_file(secondGradientXImage.c_str(), gradient_x2, gradient_x2, gradient_x2);
 
-  SDoublePlane gradient_y2 = sobel_gradient_filter(gaussed2, false);
-  SImageIO::write_png_file(secondGradientYImage.c_str(), gradient_y2, gradient_y2, gradient_y2);
+    SDoublePlane gradient_y2 = sobel_gradient_filter(gaussed2, false);
+    SImageIO::write_png_file(secondGradientYImage.c_str(), gradient_y2, gradient_y2, gradient_y2);
 
-    cout<<"Applying Tomasi Corner detection algorithm for first image\n\n";
-  find_corners_tomasi(image1,gradient_x1,gradient_y1, "1") ;
     cout<<"Applying Tomasi Corner detection algorithm for second image\n\n";
-  find_corners_tomasi(image2,gradient_x2,gradient_y2, "2") ;
+    find_corners_tomasi(image2,gradient_x2,gradient_y2, "2") ;
     
-    //Ideal value of parameters to get corners from harris detector
-//    ./a2 outta mcfaddin_1.png mcfaddin_2.png 0.1 1 2000
-
     cout<<"Stitching two images together\n\n";
 
     stitch(image1, image2,gradient_x1,gradient_y1,gradient_x2,gradient_y2,output_filename,image1_filename,image2_filename);
