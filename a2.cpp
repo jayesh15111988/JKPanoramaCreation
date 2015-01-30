@@ -157,8 +157,7 @@ SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
   SDoublePlane output(rows, cols);
 
   //vertical or horizontal
-  if (_gx==false)
-  {
+  if (_gx==false) {
     sobel_col[0][0] = 1;
     sobel_col[1][0] = 1;
     sobel_col[2][0] = 1;
@@ -166,10 +165,8 @@ SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
     sobel_row[0][0] = -1;
     sobel_row[0][1] = 0;
     sobel_row[0][2] = 1;
-
   }
-  else
-  {
+  else {
     sobel_col[0][0] = -1;
     sobel_col[1][0] = 0;
     sobel_col[2][0] = 1;
@@ -188,7 +185,7 @@ SDoublePlane sobel_gradient_filter(const SDoublePlane &input, bool _gx)
 // Apply an edge detector to an image, returns the binary edge map
 
 //tomasi corner detector
-vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePlane &input_x,const SDoublePlane &input_y, string imageSequenceNumber)
+vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePlane &input_x,const SDoublePlane &input_y, string imageSequenceNumber, float sigmaValue, int kernelSize)
 {
   vector<Coordinate> points;
   Coordinate c;
@@ -210,10 +207,10 @@ vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePl
       xy[i][j]=(input_x[i][j]*input_y[i][j]);
     }
   }
-    
-  gaussxsquare=gaussian_filter(xsquare,2,5);
-  gaussysquare=gaussian_filter(ysquare,2,5);
-  gaussxy=gaussian_filter(xy,2,5);
+
+  gaussxsquare=gaussian_filter(xsquare,sigmaValue,kernelSize);
+  gaussysquare=gaussian_filter(ysquare,sigmaValue,kernelSize);
+  gaussxy=gaussian_filter(xy,sigmaValue,kernelSize);
   double trace1;
   double det1;
   double lambda1;
@@ -232,7 +229,7 @@ vector<Coordinate> find_corners_tomasi(const SDoublePlane &input,const SDoublePl
         c.row=i;
         c.col=j;
         points.push_back(c);
-        output[i][j]=255;//sqrt(pow(input_x[i][j],2)+pow(input_y[i][j],2));
+        output[i][j] = sqrt(pow(input_x[i][j],2)+pow(input_y[i][j],2));
       }
     }
   }
@@ -459,6 +456,7 @@ struct imagedetails
   int pointimage1;
   int pointimage2;
 };
+
 imagedetails translation_estimation(const SDoublePlane image1, const SDoublePlane image2, const vector<Descriptor> &descriptors1, const vector<Descriptor> &descriptors2,const vector<Coordinate> &image1_coordinates, const vector<Coordinate> &image2_coordinates)
 {  
 
@@ -689,8 +687,8 @@ void split(vector<string>& tokens, const string &text, char sep) {
 
 int main(int argc, char *argv[])
 {
-  float sigma_value,thresh_value;
-  int GAUSS_KERNEL_SIZE;
+  float sigma_value = 2,thresh_value = 3000;
+  int GAUSS_KERNEL_SIZE = 5;
   if((argc < 4)) 
   {
     cerr << "usage: " << argv[0] << "mode(stitch(1)/no stitch(0)) output_file image_file1 image_file2" << endl;
@@ -768,7 +766,7 @@ int main(int argc, char *argv[])
    
     cout<<"Applying Gaussian filter to first input grayscale images\n\n";
     string firstGaussianImage = folderName + currentDateAndTimeValue + "first_gaussian_image.png";
-    SDoublePlane gaussed1 = gaussian_filter(image1,1,3);
+    SDoublePlane gaussed1 = gaussian_filter(image1,sigma_value,GAUSS_KERNEL_SIZE);
     SImageIO::write_png_file(firstGaussianImage.c_str(), gaussed1 , gaussed1 , gaussed1);
     
     cout<<"Applying Sobel filter in X and Y direction for first image\n\n";
@@ -781,7 +779,7 @@ int main(int argc, char *argv[])
     SImageIO::write_png_file(firstGradientYImage.c_str(), gradient_y1, gradient_y1, gradient_y1);
 
     cout<<"Applying Tomasi Corner detection algorithm for first image\n\n";
-    find_corners_tomasi(image1,gradient_x1,gradient_y1, "1") ;
+    find_corners_tomasi(image1,gradient_x1,gradient_y1, "1", sigma_value, GAUSS_KERNEL_SIZE) ;
 
     if(toStitchImages == 1) {
     SDoublePlane image2= SImageIO::read_png_file(secondInputImageName);
@@ -791,7 +789,7 @@ int main(int argc, char *argv[])
     
     cout<<"Applying Gaussian filter to second input grayscale images\n\n";
     string secondGaussianImage = folderName + currentDateAndTimeValue +"second_gaussian_image.png";
-    SDoublePlane gaussed2 = gaussian_filter(image2,1,3);
+    SDoublePlane gaussed2 = gaussian_filter(image2,sigma_value,GAUSS_KERNEL_SIZE);
     SImageIO::write_png_file(secondGaussianImage.c_str(), gaussed2 , gaussed2 , gaussed2);
 
   
@@ -806,7 +804,7 @@ int main(int argc, char *argv[])
     SImageIO::write_png_file(secondGradientYImage.c_str(), gradient_y2, gradient_y2, gradient_y2);
 
     cout<<"Applying Tomasi Corner detection algorithm for second image\n\n";
-    find_corners_tomasi(image2,gradient_x2,gradient_y2, "2") ;
+    find_corners_tomasi(image2,gradient_x2,gradient_y2, "2", sigma_value, GAUSS_KERNEL_SIZE) ;
     
     cout<<"Stitching two images together\n\n";
     stitch(image1, image2,gradient_x1,gradient_y1,gradient_x2,gradient_y2,output_filename,image1_filename,image2_filename);
